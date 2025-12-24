@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.25)
+project(analizuojam_straipsnius)
+include_directories(include)
+file(GLOB SOURCES "src/*.cpp")
+add_executable(analizuojam_straipsnius ${SOURCES})
