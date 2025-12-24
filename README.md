@@ -1,4 +1,4 @@
-# Teksto analizės programa (C++)
+# Teksto analizės programa 
 
 ## Aprašymas
 
