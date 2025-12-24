@@ -1,8 +1,7 @@
 #include "rezultatai.h"
-#include "bibliotekos.h"
 
-using namespace std;
-std::wstring normalizuoti_lietuviskus_zodzius(const std::wstring& zodis, const std::locale& loc) {
+
+std::wstring mazasis_zodis(const std::wstring& zodis, const std::locale& loc) {
     std::wstring rezultatas;
     for (wchar_t wc : zodis) {
         if (!iswpunct(wc) && !iswdigit(wc)) {
@@ -13,37 +12,40 @@ std::wstring normalizuoti_lietuviskus_zodzius(const std::wstring& zodis, const s
     return rezultatas;
 }
 
-std::string pakeistas_zodis(const std::string& zodis) {
+std::string tvarkingas_zodis(const std::string& zodis) {
     std::locale loc("lt_LT.UTF-8");
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     std::wstring w_zodis = converter.from_bytes(zodis);
-    std::wstring w_naujas = normalizuoti_lietuviskus_zodzius(w_zodis, loc);
+    std::wstring w_naujas = mazasis_zodis(w_zodis, loc);
     return converter.to_bytes(w_naujas);
 }
 
 // Spausdina zodzius ir ju pasikartojimu kieki (>1)
-void spausdinimas_zodziu_kiekis(const map<string, int>& zodziu_kiekis) {
-    ofstream failas("kiekis.txt");
+void Ifaila_zodziai(const map<string, int>& zodziai) {
+    ofstream failas("zodziu_kiekis.txt");
     if (!failas.is_open()) {
-        cout << "Nepavyko atidaryti failo 'kiekis.txt'!" << endl;
+        cout << "Nepavyko atidaryti failo 'zodziu_kiekis.txt'!" << endl;
         return;
     }
 
-    failas << left << setw(20) << "Zodis" << setw(10) << "Kiekis" << endl;
+    failas << left << setw(20) << "Zodis" << setw(10) << "Kiek kartu pasikartojo" << endl;
     failas << string(30, '-') << endl;
 
-    for (map<string, int>::const_iterator it = zodziu_kiekis.begin(); it != zodziu_kiekis.end(); ++it) {
+    for (map<string, int>::const_iterator it = zodziai.begin(); it != zodziai.end(); ++it) {
         if (it->second > 1) {
             failas << left << setw(20) << it->first << setw(10) << it->second << endl;
         }
     }
 
-    cout << "Rezultatai issaugoti faile 'kiekis.txt'" << endl;
+    cout << "Rezultatai issaugoti faile 'zodziu_kiekis.txt'" << endl;
 }
 
-// Spausdina cross-reference lentele
-void spausdinimas_zodziu_eil(const map<string, pair<int, set<int>>>& zodziu_eil) {
-    ofstream failas("eil.txt");
+
+
+
+
+void failas_eilutems(const map<string, pair<int, set<int>>>& zodziu_eil) {
+    ofstream failas("eilutese_pasikatoja.txt");
     if (!failas.is_open()) {
         cout << "Nepavyko atidaryti failo 'eil.txt'!" << endl;
         return;
@@ -68,11 +70,11 @@ void spausdinimas_zodziu_eil(const map<string, pair<int, set<int>>>& zodziu_eil)
         }
     }
 
-    cout << "Rezultatai issaugoti faile 'eil.txt'" << endl;
+    cout << "Rezultatai issaugoti faile 'eilutese_pasikartoja.txt'" << endl;
 }
 
-
-void tvarkyti_url(const set<string>& url_set) {
+//URL
+void tvarkyti_url(const set<string>& url_pilnas) {
     string pasirinkimas;
     cout << "Pasirinkite kur rodyti URL (1 - terminalas, 2 - failas): ";
 
@@ -96,7 +98,7 @@ void tvarkyti_url(const set<string>& url_set) {
 
     *out_stream << "Rasti URL adresai:" << endl;
     *out_stream << string(25, '-') << endl;
-    for (const auto& url : url_set) {
+    for (const auto& url : url_pilnas) {
         *out_stream << url << endl;
     }
 
@@ -107,14 +109,14 @@ void tvarkyti_url(const set<string>& url_set) {
 }
 
 
-// Pagrindin? analiz?s funkcija
-void failo_tvarkymas() {
+// Pagrindine analizes funkcija
+void pagrindine_analize() {
     string failo_pavadinimas;
     ifstream failas;
 
-    map<string, int> zodziu_kiekis;
+    map<string, int> zodziai;
     map<string, pair<int, set<int>>> zodziu_eil;
-    set<string> url_set;
+    set<string> url_pilnas;
     int eil_nr = 0;
 
     std::regex url_regex(R"((https?:\/\/)?(www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(/[^\s]*)?)");
@@ -130,31 +132,33 @@ void failo_tvarkymas() {
         }
     }
 
-    cout << "Failas sekmingai atidarytas!" << endl;
+    cout << "failas analizuojamas" << endl;
 
     string eilute;
     while (getline(failas, eilute)) {
         eil_nr++;
         std::stringstream ss(eilute);
         string zodis;
-        while (ss >> zodis) {
+        while (ss >> zodis) { //tikrinam ar yra url
             if (std::regex_search(zodis, url_regex)) {
 
-                // Atmetam inicialus + pavarde:
+                // Vardu trumpiniai:
                 if (zodis.size() >= 4 &&
                     isupper((unsigned char)zodis[0]) &&
                     zodis[1] == '.' &&
-                    isupper((unsigned char)zodis[2])) {
+                    isupper((unsigned char)zodis[2]))
+                {
                     continue;
                 }
 
-                // Atmetam pseudo-domenus su "//", jei neprasideda "http"
+				// Atmetam jei neprasideda "http" ir turi //, pvz "//vilnius.com"
                 if (zodis.find("//") != string::npos &&
-                    zodis.find("http") != 0) {
+                    zodis.find("http") != 0)
+                {
                     continue;
                 }
 
-                // Atmetam per trumpus pseudodomenus, pvz. m.brum
+				// Atmetam per trumpus pvz. a.lt, b.com
                 if (zodis.find("http") != 0 && zodis.find("www.") != 0) {
                     size_t dot = zodis.find('.');
                     if (dot != string::npos && dot <= 1) {
@@ -162,7 +166,7 @@ void failo_tvarkymas() {
                     }
                 }
 
-                // Atmetam klaidingus formatus, pvz. paleolitas.//A.Girininkas
+				//pvz vilnius.lt//.vilnius
                 if (zodis.find(".//") != string::npos) {
                     continue;
                 }
@@ -171,17 +175,21 @@ void failo_tvarkymas() {
                 while (!zodis.empty() && ispunct((unsigned char)zodis.back())) {
                     zodis.pop_back();
                 }
+				//pasaliname priekine skyryba pvz skliaustai, arba taskai
+                while (!zodis.empty() && (ispunct((unsigned char)zodis.front()))) {
+                    zodis.erase(zodis.begin());
+                }
 
                 // Idedam i URL rinkini
-                url_set.insert(zodis);
+                url_pilnas.insert(zodis);
             }
-            else {
-                string tvarkytas = pakeistas_zodis(zodis);
-                if (!tvarkytas.empty()) {
+			else { //nera url, tvarkom zodi
+                string grazus_zodis = tvarkingas_zodis(zodis);
+                if (!grazus_zodis.empty()) {
 
                     // Patikriname, ar zodyje yra bent viena raide
                     bool turi_raidziu = false;
-                    for (char c : tvarkytas) {
+                    for (char c : grazus_zodis) {
                         if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
                             turi_raidziu = true;
                             break;
@@ -190,9 +198,9 @@ void failo_tvarkymas() {
                     if (!turi_raidziu) continue;  // jei raidziu nera, praleidziame
 
                     // Atnaujiname zodziu skaiciu ir eilutes
-                    zodziu_kiekis[tvarkytas]++;
-                    zodziu_eil[tvarkytas].first++;
-                    zodziu_eil[tvarkytas].second.insert(eil_nr);
+                    zodziai[grazus_zodis]++;
+                    zodziu_eil[grazus_zodis].first++;
+                    zodziu_eil[grazus_zodis].second.insert(eil_nr);
                 }
             }
         }
@@ -200,11 +208,11 @@ void failo_tvarkymas() {
 
     failas.close();
 
-    spausdinimas_zodziu_kiekis(zodziu_kiekis);
-    spausdinimas_zodziu_eil(zodziu_eil);
+    Ifaila_zodziai(zodziai);
+    failas_eilutems(zodziu_eil);
 
-    if (!url_set.empty()) {
-        tvarkyti_url(url_set);
+    if (!url_pilnas.empty()) {
+        tvarkyti_url(url_pilnas);
     }
     else {
         cout << "URL adresu nerasta." << endl;
